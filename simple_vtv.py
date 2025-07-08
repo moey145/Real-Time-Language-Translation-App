@@ -142,7 +142,6 @@ def update_interface(input_method):
         return gr.update(visible=False), gr.update(visible=True)
 
 # Custom CSS for Poppins font and fixing scroll issues
-# Custom CSS for Poppins font and fixing scroll issues
 custom_css = """
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -159,14 +158,9 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600 !important;
 }
 
-.tab-nav button {
+label, span {
     font-family: 'Poppins', sans-serif !important;
-    font-weight: 500 !important;
-}
-
-label {
-    font-family: 'Poppins', sans-serif !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
 }
 
 button {
@@ -190,43 +184,6 @@ input, textarea, select {
     font-family: 'Poppins', sans-serif !important;
 }
 
-/* Fix for scroll issue on title container */
-.block.svelte-1svsvh2.padded {
-    overflow: visible !important;
-    min-height: auto !important;
-    height: auto !important;
-}
-
-/* Fix for the first markdown block specifically */
-.block.padded:first-child {
-    padding: 1rem !important;
-    margin: 0 !important;
-    overflow: visible !important;
-}
-
-.block.padded:first-child .markdown {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-    max-height: none !important;
-}
-
-/* Remove scroll bars from all markdown containers */
-.markdown {
-    overflow: visible !important;
-    max-height: none !important;
-}
-
-/* Target the specific container causing the scroll */
-div[id^="component-"] {
-    overflow: visible !important;
-}
-
-/* Fix for prose elements */
-.prose {
-    overflow: visible !important;
-    max-height: none !important;
-}
 """
 
 # Create the Gradio interface with custom theme and CSS
@@ -235,8 +192,7 @@ with gr.Blocks(
     title="Multi-Language Translation App",
     css=custom_css
 ) as demo:
-    gr.Markdown("#Multi-Language Translation App")
-    gr.Markdown("Choose your input method and translate between languages!")
+    gr.Markdown("<h1 style='text-align: center; padding-bottom: 30px; margin-bottom: 20px;'>Multi-Language Translation App</h1>")
     
     with gr.Row():
         with gr.Column():
