@@ -365,8 +365,4 @@ with gr.Blocks(
     )
 
 if __name__ == "__main__":
-    demo.launch(
-        share=False,
-        debug=True,
-        server_port=7860
-    )
+    demo.launch()
