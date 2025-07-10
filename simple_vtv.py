@@ -205,9 +205,12 @@ input, textarea, select {
 
 /* Footer styling */
 .footer {
-    margin-top: 150px;
     text-align: center;
     color: black;
+    position: fixed;
+    bottom: 55px;
+    left: 0;
+    width: 100%;
 }
 
 .footer h3 {
@@ -219,6 +222,12 @@ input, textarea, select {
     margin-bottom: 15px;
     color: black !important;
     opacity: 0.8;
+}
+
+.footer p a {
+    color: black !important;
+    text-decoration: none;
+    transition: all 0.3s ease;
 }
 
 .footer p a:hover {
