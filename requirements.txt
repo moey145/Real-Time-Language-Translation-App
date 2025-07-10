@@ -1,4 +1,0 @@
-openai-whisper
-translate
-gtts
-torch
