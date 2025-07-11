@@ -43,6 +43,55 @@ WHISPER_LANG_MAP = {
     "Dutch": "nl"
 }
 
+def translate_content_with_progress(audio_file, text_input, input_method, input_language, target_language, progress=gr.Progress()):
+    try:
+        progress(0.1, desc="Starting translation...")
+        time.sleep(0.1)  # Small delay to show progress
+        
+        # Determine input text based on selected method
+        progress(0.2, desc="Processing input...")
+        if input_method == "Voice Input":
+            if not audio_file:
+                return "Error: Please record audio for voice input.", None
+            progress(0.3, desc="Transcribing audio...")
+            transcription_text = audio_transcription(audio_file, input_language)
+            input_source = "Voice Input"
+        elif input_method == "Text Input":
+            if not text_input or not text_input.strip():
+                return "Error: Please enter text for text input.", None
+            transcription_text = text_input.strip()
+            input_source = "Text Input"
+        else:
+            return "Error: Please select an input method.", None
+
+        progress(0.5, desc="Preparing translation...")
+        # Get language codes
+        input_lang_code = LANGUAGE_OPTIONS[input_language]
+        target_lang_code = LANGUAGE_OPTIONS[target_language]
+
+        # Skip translation if input and target languages are the same
+        if input_language == target_language:
+            progress(0.7, desc="Languages are the same, skipping translation...")
+            translation = transcription_text
+        else:
+            progress(0.6, desc="Translating text...")
+            # Translate text
+            translation = text_translation(transcription_text, input_lang_code, target_lang_code)
+
+        progress(0.8, desc="Generating audio...")
+        # Generate audio for translation
+        audio_output = text_to_speech(translation, target_lang_code)
+
+        progress(0.95, desc="Finalizing results...")
+        result_text = f"Original ({input_language}) [{input_source}]: {transcription_text}\n\nTranslation ({target_language}): {translation}"
+        
+        progress(1.0, desc="Complete!")
+        return result_text, audio_output
+
+    except Exception as e:
+        print(f"Error in translate_content_with_progress: {e}")
+        return f"Error: {str(e)}", None
+
 def translate_content(audio_file, text_input, input_method, input_language, target_language):
     try:
         # Determine input text based on selected method
@@ -184,6 +233,12 @@ input, textarea, select {
 
 .block.padded {
     font-family: 'Poppins', sans-serif !important;
+}
+
+/* Progress bar styling */
+.progress-bar {
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%) !important;
+    border-radius: 4px !important;
 }
 
 /* Footer styling */
@@ -339,11 +394,12 @@ with gr.Blocks(
         outputs=[audio_input, text_input]
     )
     
-    # Simplified function call without progress
+    # Updated function call with progress bar
     translate_btn.click(
-        fn=translate_content,
+        fn=translate_content_with_progress,
         inputs=[audio_input, text_input, input_method, input_language_dropdown, target_language_dropdown],
-        outputs=[text_output, audio_output]
+        outputs=[text_output, audio_output],
+        show_progress=True
     )
 
 if __name__ == "__main__":
