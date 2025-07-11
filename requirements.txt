@@ -1,0 +1,6 @@
+gradio
+openai-whisper
+translate
+gtts
+torch
+torchaudio
