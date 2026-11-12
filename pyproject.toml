@@ -1,0 +1,8 @@
+[project]
+name = "live-translator"
+version = "2.0.0"
+description = "Real-time voice and text translation with Claude and browser speech recognition."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,6 +1,4 @@
-gradio
-openai-whisper
-translate
-gtts
-torch
-torchaudio
+fastapi==0.162.4
+uvicorn[standard]==0.54.0
+anthropic==2.8.0
+pydantic-settings==2.16.2

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Live Translator</title>
+  <meta name="description" content="Real-time voice and text translation in 58 languages.">
+  <meta name="theme-color" content="#f7f7fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 11h9M13.5 9v2m3 0c-.6 3.6-3.2 6.6-6.5 8m2.3-5.3c1 1.9 2.6 3.4 4.5 4.3M17 23l3.5-8 3.5 8m-6-2.5h5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    try { const t = localStorage.getItem("lt.theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2m3 0c-.6 3.6-3.2 6.6-6.5 8m2.3-5.3c1 1.9 2.6 3.4 4.5 4.3M12 20l3.5-8 3.5 8m-6-2.5h5"/></svg>
+        </span>
+        <h1>Live Translator</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="conn" id="conn" data-state="connecting" title="Connecting">
+          <span class="conn-dot"></span><span class="conn-label">Connecting</span>
+        </span>
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Languages">
+      <div class="segmented" role="tablist" aria-label="Mode">
+        <button role="tab" type="button" data-mode="translate" aria-selected="true">Translate</button>
+        <button role="tab" type="button" data-mode="conversation" aria-selected="false">Conversation</button>
+      </div>
+      <div class="lang-row">
+        <label class="lang-field">
+          <span class="lang-label" id="leftLabel">From</span>
+          <select id="leftLang"></select>
+        </label>
+        <button class="icon-btn swap" id="swapBtn" type="button" aria-label="Swap languages" title="Swap languages">
+          <svg viewBox="0 0 24 24"><path d="M7 7h13m0 0-4-4m4 4-4 4M17 17H4m0 0 4-4m-4 4 4 4"/></svg>
+        </button>
+        <label class="lang-field">
+          <span class="lang-label" id="rightLabel">To</span>
+          <select id="rightLang"></select>
+        </label>
+      </div>
+    </section>
+
+    <div class="banner" id="banner" hidden></div>
+
+    <main class="feed" id="feed" aria-live="polite">
+      <div class="empty" id="empty">
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </div>
+        <p class="empty-title" id="emptyTitle">Tap the mic and start talking</p>
+        <p class="empty-sub" id="emptySub"></p>
+      </div>
+    </main>
+
+    <footer class="dock">
+      <div class="mics">
+        <div class="mic-wrap">
+          <button class="mic" id="micA" type="button" aria-pressed="false">
+            <span class="mic-ring" aria-hidden="true"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+          <span class="mic-status" id="micAStatus"></span>
+        </div>
+        <div class="mic-wrap" id="micBWrap" hidden>
+          <button class="mic alt" id="micB" type="button" aria-pressed="false">
+            <span class="mic-ring" aria-hidden="true"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+          <span class="mic-status" id="micBStatus"></span>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="textInput" rows="1" placeholder="Type to translate…" aria-label="Text to translate" maxlength="2000" dir="auto"></textarea>
+        <button class="send" type="submit" aria-label="Translate text" title="Translate (Enter)">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg>
+        </button>
+      </form>
+    </footer>
+
+    <p class="credit">
+      © 2026 Mohamad Eldhaibi ·
+      <a href="https://github.com/moey145" target="_blank" rel="noopener">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/mohamad-eldhaibi-8ba8a42b7" target="_blank" rel="noopener">LinkedIn</a> ·
+      <a href="https://www.mohamadeldhaibi.com" target="_blank" rel="noopener">Website</a>
+    </p>
+  </div>
+
+  <dialog class="sheet" id="settings">
+    <form method="dialog" class="sheet-body">
+      <header class="sheet-head">
+        <h2>Settings</h2>
+        <button class="icon-btn" value="close" aria-label="Close">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
+      <fieldset>
+        <legend>Speech</legend>
+        <label class="switch">
+          <span><b>Read translations aloud</b><small>Uses your device's built-in voices.</small></span>
+          <input type="checkbox" id="speakToggle" role="switch">
+        </label>
+        <label class="field">
+          <span>Speaking speed <output id="rateOut"></output></span>
+          <input type="range" id="rate" min="0.6" max="1.6" step="0.1">
+        </label>
+      </fieldset>
+
+      <fieldset class="row-actions">
+        <legend>Session</legend>
+        <button type="button" class="btn" id="exportBtn">Export transcript</button>
+        <button type="button" class="btn danger" id="clearBtn">Clear conversation</button>
+      </fieldset>
+
+      <p class="sheet-note">Voice input uses your browser's speech recognition. In Chrome and Edge your audio is processed by the browser vendor's speech service.</p>
+    </form>
+  </dialog>
+
+  <output class="toast" id="toast" hidden></output>
+
+  <template id="cardTpl">
+    <article class="card">
+      <header class="card-head">
+        <span class="chip"></span>
+        <span class="card-kind"></span>
+        <time class="card-time"></time>
+      </header>
+      <p class="source" dir="auto"></p>
+      <p class="target" dir="auto"></p>
+      <p class="card-error" hidden></p>
+      <div class="card-actions">
+        <button type="button" class="mini" data-act="play" aria-label="Play translation" title="Play">
+          <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm4.5 3.5a5 5 0 0 1 0 7M18.4 6a8.5 8.5 0 0 1 0 12"/></svg>
+        </button>
+        <button type="button" class="mini" data-act="copy" aria-label="Copy translation" title="Copy">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+        </button>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

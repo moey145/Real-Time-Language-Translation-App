@@ -1,174 +1,96 @@
-# Real-Time Language Translation App
+# Live Translator
 
-A powerful web-based application that provides real-time language translation with both voice and text input capabilities. Built with Gradio for an intuitive user interface and powered by OpenAI's Whisper for speech recognition, Google Translate for text translation, and Google Text-to-Speech for audio output.
+Real-time voice and text translation in 58 languages, running on a single API key. Speak naturally: your words appear as you talk, and each phrase is translated with conversation context as soon as you pause, then read aloud.
 
-## Features
+- **Live voice input.** The browser's built-in speech recognition shows your words as you speak and sends each phrase when you pause. There are no record/stop steps.
+- **Context-aware translation with Claude.** Recent exchanges are sent along, so pronouns, formality and terminology stay consistent. The translation streams in word by word.
+- **Conversation mode.** Two people, two languages, one mic button each. Every phrase is translated for the other person and spoken aloud.
+- **Spoken output** with your device's own voices, with adjustable speed.
+- Typed input with automatic language detection, copy, replay, transcript export, light and dark themes, works on phones.
+- **One key, low cost.** Only an Anthropic API key is needed; speech recognition and speech output are free, built into the browser.
 
-### Voice Input
-- Record audio directly through your microphone
-- Automatic speech recognition using Whisper AI
-- Support for 13 different input languages
+## How it works
 
-### Text Input
-- Type text directly into the interface
-- Clean and intuitive text input field
-- Copy-paste functionality
-
-### Multi-Language Support
-- **13 Supported Languages:**
-  - English, Spanish, French, German, Italian
-  - Portuguese, Russian, Japanese, Chinese, Korean
-  - Arabic, Hindi, Dutch
-
-### Audio Output
-- Text-to-speech conversion of translations
-- High-quality audio generation using Google TTS
-- Playback controls with download option
-
-### Real-Time Progress
-- Visual progress indicators
-- Step-by-step process feedback
-- Error handling with user-friendly messages
-
-### Modern UI
-- Beautiful Poppins font integration
-- Responsive design with Gradio Soft theme
-- Custom CSS styling with gradient progress bars
-
-## Installation
-
-### Prerequisites
-- Python 3.8 or higher
-- Internet connection (required for translation and TTS services)
-
-### Required Dependencies
-
-```bash
-pip install gradio
-pip install openai-whisper
-pip install translate
-pip install gtts
+```
+Browser                                        Server (FastAPI)
+───────                                        ────────────────
+mic → Web Speech API (live words) ─┐
+                                   ├─ phrase ──WS──▶ Claude Haiku 5.5 (streamed,
+typed text ────────────────────────┘                 with recent context)
+                                                          │
+cards update live ◀──────────── translation deltas ───────┘
+   └─▶ read aloud with the device's speech synthesis
 ```
 
-### Additional System Requirements
-- FFmpeg (for audio processing with Whisper)
-  - Windows: Download from [FFmpeg website](https://ffmpeg.org/download.html)
-  - macOS: `brew install ffmpeg`
-  - Linux: `sudo apt install ffmpeg`
+One WebSocket per browser tab carries settings, phrases and the streamed translations. Each connection keeps a short history for context; nothing is stored on disk.
 
-## Usage
+| Piece | File |
+|---|---|
+| App, routes, WebSocket, limits | [server/main.py](server/main.py) |
+| Per-connection pipeline and routing | [server/session.py](server/session.py) |
+| Claude translation | [server/providers/claude_translator.py](server/providers/claude_translator.py) |
+| Speech recognition helpers | [web/speech.js](web/speech.js) |
+| Frontend | [web/](web/) (no build step) |
 
-### Running the Application
+## Quick start
 
-1. Clone the repository:
+Requires Python 3.11+ and an [Anthropic API key](https://console.anthropic.com).
+
 ```bash
-git clone https://github.com/yourusername/Real-Time-Language-Translation-App.git
-cd Real-Time-Language-Translation-App
-```
-
-2. Install dependencies:
-```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env    # then add ANTHROPIC_API_KEY
+uvicorn server.main:app --reload
 ```
 
-3. Run the application:
+Open http://localhost:8000 in **Chrome, Edge or Safari**. Firefox has no speech recognition, so it supports typing only. Browsers allow the microphone only on `localhost` or over HTTPS.
+
+### Docker
+
 ```bash
-gradio simple_vtv.py
+docker build -t live-translator .
+docker run --env-file .env -p 8000:8000 live-translator
 ```
 
-4. Open your web browser and navigate to:
+The image listens on `$PORT` (default 8000), so it runs as-is on Render, Railway, Fly.io, Cloud Run and similar hosts. Serve it over HTTPS so the microphone works.
+
+## Configuration
+
+Environment variables (or entries in `.env`):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | | Required. |
+| `CLAUDE_MODEL` | `claude-haiku-5-5` | `claude-sonnet-5-5` or `claude-opus-5-5` for higher quality at a higher cost. |
+| `CLAUDE_EFFORT` | `low` | Higher effort adds latency; `low` suits short phrases. |
+| `CONTEXT_TURNS` | `6` | Earlier exchanges sent as context. |
+| `MAX_TEXT_CHARS` | `2000` | |
+| `MAX_REQUESTS_PER_MINUTE` | `40` | Per connection. |
+
+## Using it
+
+- **Translate mode:** choose *From* and *To*. With *Detect language*, typed text is auto-detected, and the mic listens in your browser's language. To speak another language, pick it in *From*.
+- **Conversation mode:** choose each person's language. Person A taps the filled mic, person B the outlined one.
+- **Space** toggles the mic (when you're not typing). **Enter** sends typed text, **Shift+Enter** adds a new line.
+- The mic pauses while a translation is read aloud, so the app doesn't translate its own voice.
+- Voice quality depends on the voices installed on the device. Edge's "Natural" voices and Chrome's Google voices sound best.
+
+**Privacy note:** in Chrome and Edge, speech recognition audio is processed by Google's or Microsoft's speech service. Safari can recognise speech on the device.
+
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
-http://localhost:7860
-```
 
-### How to Use
+The tests use a fake translator, so they need no key and make no network calls. GitHub Actions runs them on every push and pull request.
 
-1. **Select Input Method:**
-   - Choose between "Voice Input" or "Text Input"
+## Costs
 
-2. **For Voice Input:**
-   - Click the microphone button to start recording
-   - Speak clearly in your chosen input language
-   - Click stop when finished
+Speech recognition and speech output are free. Each phrase makes one Claude Haiku 5.5 call: a few hundred input tokens (instructions plus recent context) and a short reply. At Haiku 5.5's list price of $0.10 / $0.50 per million input/output tokens, that is roughly 10–20 cents per 1,000 phrases (an estimate). Set `CONTEXT_TURNS` lower to trim it further. The per-connection rate limit protects a public deployment from runaway use. Check current prices at https://www.anthropic.com/pricing.
 
-3. **For Text Input:**
-   - Type or paste your text in the text field
+## Author
 
-4. **Select Languages:**
-   - Choose your input language from the dropdown
-   - Select the target language for translation
-
-5. **Translate:**
-   - Click the "Translate" button
-   - View the progress bar for real-time updates
-   - See the results in both text and audio format
-
-## Technical Architecture
-
-### Core Components
-
-- **Speech Recognition:** OpenAI Whisper (base model)
-- **Translation:** Google Translate API via `translate` library
-- **Text-to-Speech:** Google Text-to-Speech (gTTS)
-- **Web Interface:** Gradio framework
-- **Audio Processing:** Temporary file handling for audio I/O
-
-### Key Functions
-
-- `translate_content_with_progress()`: Main translation pipeline with progress tracking
-- `audio_transcription()`: Converts audio to text using Whisper
-- `text_translation()`: Translates text between languages
-- `text_to_speech()`: Converts translated text to audio
-- `update_interface()`: Manages UI state changes
-
-## Server Configuration
-- **Default Port:** 7860
-- **Debug Mode:** Enabled
-- **Public Sharing:** Disabled (set `share=True` to enable)
-
-## Error Handling
-
-The application includes comprehensive error handling for:
-- Empty or invalid audio files
-- Network connectivity issues
-- Unsupported languages
-- File processing errors
-- Translation service failures
-
-## Performance Notes
-
-- **First Run:** Initial model loading may take 30-60 seconds
-- **Audio Processing:** Depends on file size and duration
-- **Translation Speed:** Typically 1-3 seconds per request
-- **Memory Usage:** ~1GB for Whisper base model
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Audio not recording:**
-   - Check microphone permissions in your browser
-   - Ensure microphone is not used by other applications
-
-2. **Translation errors:**
-   - Verify internet connection
-   - Check if the selected languages are supported
-
-3. **Audio playback issues:**
-   - Ensure browser supports MP3 playback
-   - Check system audio settings
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Acknowledgments
-
-- [OpenAI Whisper](https://github.com/openai/whisper) for speech recognition
-- [Google Translate](https://translate.google.com) for translation services
-- [Google Text-to-Speech](https://cloud.google.com/text-to-speech) for audio generation
-- [Gradio](https://gradio.app) for the web interface framework
+Mohamad Eldhaibi · [GitHub](https://github.com/moey145) · [LinkedIn](https://www.linkedin.com/in/mohamad-eldhaibi-8ba8a42b7) · [Website](https://www.mohamadeldhaibi.com)
