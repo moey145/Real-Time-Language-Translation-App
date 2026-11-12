@@ -148,3 +148,30 @@ def test_missing_key_is_explained_to_the_user(settings, monkeypatch, tmp_path):
         ws.send_json({"type": "text", "text": "hi"})
         error = receive_until(ws, "error")[-1]
     assert "ANTHROPIC_API_KEY" in error["message"]
+
+
+def test_context_is_restored_after_reconnect(client, translator):
+    turns = [
+        {"source_lang": "en", "source_text": f"line {i}", "target_lang": "es", "translated_text": f"línea {i}"}
+        for i in range(10)
+    ]
+    with client.websocket_connect("/ws") as ws:
+        ws.receive_json()
+        ws.send_json({"type": "history", "turns": turns})
+        ws.send_json({"type": "text", "text": "next"})
+        receive_until(ws, "translation.done")
+
+    context = translator.requests[0].context
+    assert [t.source_text for t in context] == [f"line {i}" for i in range(4, 10)]  # last CONTEXT_TURNS kept
+    assert context[-1].translated_text == "línea 9"
+
+
+def test_malformed_history_is_rejected(client, translator):
+    with client.websocket_connect("/ws") as ws:
+        ws.receive_json()
+        for bad in ("nope", [{"source_text": "x"}], [{"source_text": "x", "translated_text": "y", "target_lang": "xx"}]):
+            ws.send_json({"type": "history", "turns": bad})
+            assert ws.receive_json()["message"] == "Could not restore the conversation context."
+        ws.send_json({"type": "text", "text": "hi"})
+        receive_until(ws, "translation.done")
+    assert translator.requests[0].context == ()

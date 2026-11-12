@@ -36,6 +36,7 @@ const state = {
   cards: new Map(),
   listening: null, // "a" | "b" | null
   draft: null,
+  outbox: [], // phrases waiting for the connection to come back
 };
 
 const recognizer = new Recognizer();
@@ -81,26 +82,58 @@ function connect() {
     state.retry = 0;
     setConn("open");
     send({ type: "config", config: state.config });
+    const turns = recentTurns();
+    if (turns.length) send({ type: "history", turns });
+    for (const payload of state.outbox.splice(0)) send(payload);
   };
   ws.onmessage = (event) => {
     try { handle(JSON.parse(event.data)); } catch (err) { console.error(err); }
   };
   ws.onclose = () => {
     if (state.ws !== ws) return;
-    setConn("closed");
-    setTimeout(connect, Math.min(15000, 1000 * 2 ** state.retry++));
+    requeueUnfinished();
+    // Serverless hosts close connections after a few minutes: reconnect at once, then back off.
+    const delay = state.retry === 0 ? 0 : Math.min(15000, 500 * 2 ** state.retry);
+    state.retry++;
+    setConn(state.retry > 2 ? "closed" : "connecting");
+    setTimeout(connect, delay);
   };
 }
 
-setInterval(() => send({ type: "ping" }, true), 25000);
+setInterval(() => send({ type: "ping" }), 25000);
 
-function send(payload, quiet = false) {
-  if (state.ws?.readyState === WebSocket.OPEN) {
-    state.ws.send(JSON.stringify(payload));
-    return true;
+function send(payload) {
+  if (state.ws?.readyState !== WebSocket.OPEN) return false;
+  state.ws.send(JSON.stringify(payload));
+  return true;
+}
+
+/** Send a phrase now, or hold it until the connection is back. */
+function sendPhrase(payload) {
+  if (send(payload)) return;
+  state.outbox.push(payload);
+  if (state.outbox.length === 1) toast("Reconnecting… your phrase will be sent in a moment.");
+}
+
+/** The last few finished exchanges, so a fresh connection keeps the conversation context. */
+function recentTurns() {
+  return [...state.cards.values()]
+    .filter((c) => c.status === "done" && c.target && c.targetLang)
+    .slice(-6)
+    .map((c) => ({ source_lang: c.sourceLang, source_text: c.source, target_lang: c.targetLang, translated_text: c.target }));
+}
+
+/** Phrases cut off by a dropped connection are removed and sent again after reconnecting. */
+function requeueUnfinished() {
+  const retry = [];
+  for (const card of state.cards.values()) {
+    if (card.status !== "translating" || !card.source) continue;
+    retry.push({ type: "text", text: card.source, ...(card.kind === "voice" && { spoken: card.sourceLang }) });
+    card.el.remove();
+    state.cards.delete(card.id);
   }
-  if (!quiet) toast("Not connected. Reconnecting…");
-  return false;
+  state.outbox.unshift(...retry);
+  if (!state.cards.size && !state.draft) el.empty.hidden = false;
 }
 
 function setConn(s) {
@@ -217,7 +250,7 @@ function clearCards() {
   player.queue.length = 0;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   if (!state.draft) el.empty.hidden = false;
-  send({ type: "reset" }, true);
+  send({ type: "reset" });
 }
 
 function isNearBottom() {
@@ -361,7 +394,7 @@ recognizer.addEventListener("interim", (e) => {
 recognizer.addEventListener("final", (e) => {
   const lang = recognizer.lang;
   showDraft("");
-  send({ type: "text", text: e.detail.text, spoken: lang });
+  sendPhrase({ type: "text", text: e.detail.text, spoken: lang });
 });
 
 recognizer.addEventListener("state", (e) => {
@@ -419,7 +452,7 @@ function renderMode() {
 
 function pushConfig() {
   store.set("config", state.config);
-  send({ type: "config", config: state.config }, true);
+  send({ type: "config", config: state.config }); // also re-sent on every reconnect
 }
 
 function onLangChange() {
@@ -507,10 +540,10 @@ function autoGrow() {
 
 function submitText() {
   const text = el.text.value.trim();
-  if (text && send({ type: "text", text })) {
-    el.text.value = "";
-    autoGrow();
-  }
+  if (!text) return;
+  sendPhrase({ type: "text", text });
+  el.text.value = "";
+  autoGrow();
 }
 
 function toggleTheme() {

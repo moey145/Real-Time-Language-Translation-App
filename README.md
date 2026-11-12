@@ -46,6 +46,16 @@ uvicorn server.main:app --reload
 
 Open http://localhost:8000 in **Chrome, Edge or Safari**. Firefox has no speech recognition, so it supports typing only. Browsers allow the microphone only on `localhost` or over HTTPS.
 
+### Vercel
+
+1. Import the GitHub repo at https://vercel.com/new. No build settings are needed: `pyproject.toml` points Vercel at `server.main:app`, and `.python-version` pins Python 3.12.
+2. Under **Settings → Environment Variables**, add `ANTHROPIC_API_KEY`, then deploy (or redeploy).
+3. Make sure **Fluid compute** is on (**Settings → Functions**). It's the default for new projects, and WebSockets need it.
+
+Vercel closes each WebSocket when the function reaches its maximum duration (5 minutes on the Hobby plan). The page reconnects straight away, resends any phrase that was cut off, and restores the recent conversation, so this is invisible apart from a brief "Connecting" dot.
+
+The app is public once deployed, so set a monthly spend limit for your key in the Anthropic Console.
+
 ### Docker
 
 ```bash

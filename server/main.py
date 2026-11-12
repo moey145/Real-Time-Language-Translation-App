@@ -145,6 +145,10 @@ async def handle_text_frame(raw: str, session: TranslationSession, send, enqueue
             await send({"type": "error", "message": f"Text is limited to {settings.max_text_chars} characters."})
             return
         await enqueue(text, spoken)
+    elif kind == "history":
+        # Sent after a reconnect (serverless hosts close long-lived connections) to restore context.
+        if not session.restore(msg.get("turns"), max_chars=settings.max_text_chars):
+            await send({"type": "error", "message": "Could not restore the conversation context."})
     elif kind == "reset":
         session.reset()
         await send({"type": "reset"})

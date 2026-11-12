@@ -57,6 +57,30 @@ class TranslationSession:
     def reset(self) -> None:
         self.history.clear()
 
+    def restore(self, turns: Any, *, max_chars: int) -> bool:
+        """Replace the context with turns the client kept. Returns False if they are malformed."""
+        if not isinstance(turns, list):
+            return False
+        limit = self.history.maxlen or 0
+        restored: list[Turn] = []
+        for item in turns[-limit:] if limit else []:
+            if not isinstance(item, dict):
+                return False
+            source_lang, target_lang = item.get("source_lang"), item.get("target_lang")
+            source_text, translated = item.get("source_text"), item.get("translated_text")
+            if not (isinstance(source_text, str) and isinstance(translated, str)):
+                return False
+            if len(source_text) > max_chars or len(translated) > max_chars * 3:
+                return False
+            if not languages.is_supported(target_lang):
+                return False
+            if source_lang is not None and not languages.is_supported(source_lang):
+                return False
+            restored.append(Turn(source_lang, source_text, target_lang, translated))
+        self.history.clear()
+        self.history.extend(restored)
+        return True
+
     async def run(self, uid: int, text: str, cfg: SessionConfig, *, spoken: str | None = None) -> None:
         """Translate one phrase. `spoken` is the language the browser recognised speech in, if voice input."""
         try:

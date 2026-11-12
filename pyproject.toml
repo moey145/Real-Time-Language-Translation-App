@@ -2,7 +2,17 @@
 name = "live-translator"
 version = "2.0.0"
 description = "Real-time voice and text translation with Claude and browser speech recognition."
-requires-python = ">=3.11"
+requires-python = ">=3.12"
+# Keep in sync with requirements.txt (Vercel may install from either file).
+dependencies = [
+    "fastapi==0.162.4",
+    "uvicorn[standard]==0.54.0",
+    "anthropic==2.8.0",
+    "pydantic-settings==2.16.2",
+]
+
+[tool.vercel]
+entrypoint = "server.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
